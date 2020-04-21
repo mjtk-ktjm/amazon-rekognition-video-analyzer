@@ -144,7 +144,7 @@ Resources:
         S3Key: !Ref ImageProcessorSourceS3KeyParameter
       Timeout: 40 #seconds
       MemorySize: 128 #MB
-      Runtime: python2.7
+      Runtime: python3.8
     DependsOn: 
       - FrameStream
       - ImageProcessorLambdaExecutionRole
