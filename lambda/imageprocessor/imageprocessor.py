@@ -10,7 +10,7 @@ import time
 import decimal
 import uuid
 import json
-import cPickle
+import pickle
 import boto3
 import pytz
 from pytz import timezone
@@ -64,7 +64,7 @@ def process_image(event, context):
     for record in event['Records']:
 
         frame_package_b64 = record['kinesis']['data']
-        frame_package = cPickle.loads(base64.b64decode(frame_package_b64))
+        frame_package = pickle.loads(base64.b64decode(frame_package_b64))
 
         img_bytes = frame_package["ImageBytes"]
         approx_capture_ts = frame_package["ApproximateCaptureTime"]
@@ -111,6 +111,27 @@ def process_image(event, context):
 
             #Convert from float to decimal for DynamoDB
             label['Confidence'] = decimal.Decimal(conf)
+
+            # Also, convert floats from 'Instances' into Decimal()'s
+            updated_indexes = []
+            for idx, instance in enumerate(label['Instances']) : 
+                if len(instance)>0 : 
+                    print(instance)
+                    if 'BoundingBox' in instance.keys() : 
+                        new_value = {
+                            'BoundingBox' : {
+                                'Width' : decimal.Decimal(instance['BoundingBox']['Width']),
+                                'Height': decimal.Decimal(instance['BoundingBox']['Height']),
+                                'Left': decimal.Decimal(instance['BoundingBox']['Left']),
+                                'Top': decimal.Decimal(instance['BoundingBox']['Top'])
+                            },
+                            'Confidence': decimal.Decimal(instance['Confidence'])
+                        }
+                        updated_indexes.append((idx, new_value))
+
+            if len(updated_indexes)>0 : 
+                for update_value in updated_indexes : 
+                    label['Instances'][update_value[0]] = update_value[1]
 
         #Send out notification(s), if needed
         if len(labels_on_watch_list) > 0 \
